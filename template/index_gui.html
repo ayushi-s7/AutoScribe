@@ -1,1 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,700;0,800;0,900;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <style>
+        body{
+            background-color: #000000;
+            font-family: 'Montserrat', sans-serif;
+            color: grey;
+        }
+        #sentence {
+            width: 70%;
+            height:150px;
+            padding: 10px;
+            font-size: 16px;
+            position: center;
+            border-radius: 15px;
+            box-shadow: 10px 10px #847c7c;
 
+        }
+        #sentence:hover {
+            width: 70%;
+            padding: 10px;
+            font-size: 16px;
+            position: center;
+            border-radius: 10px;
+            border-width:0px;
+            box-shadow: 10px 10px #847c7c;
+        }
+        #autocompleted-word {
+            color: grey;
+        }
+        #suggestion-popup {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            padding: 5px;
+        }
+        #autocorrected-word {
+            color: red;
+        }
+        .l {
+            width: 100px;
+            height:50px;
+            background-color: #f8fbfc;
+            border-radius: 25px;
+            border-width: 0px;
+            margin:20px;
+            padding-top: 1px;
+            text-align: center;
+            vertical-align: middle;
+            box-shadow: 3px 3px #888888;
+            font-family: 'Montserrat', sans-serif;
+            color: rgb(85, 80, 80);
+
+            }
+        .l:hover {
+            width: 100px;
+            height:50px;
+            background-color: grey;
+            color: white;
+            border-radius: 50px;
+            margin:20px;
+            padding-top: 1px;
+            text-align: center;
+            vertical-align: middle;
+            box-shadow: 3px 3px 500px #888888;
+            }
+    </style>
+</head>
+<body>
+    <center>
+    <h1>Autocomplete, Autocorrect, and Summarize</h1>
+    <textarea id="sentence" rows="4" placeholder="Type your sentence here..."></textarea>
+    <p id="autocompleted-word"></p>
+    <p id="autocorrected-word"></p>
+    <div id="suggestion-popup"></div>
+    <button  class="l" onclick="summarizeText()">Summarize</button>
+    <div id="summary"></div>
+    </center>
+    <script>
+        var var1 = null;
+        
+        function updateAutocompletedWord(word) {
+            const autocompletedWord = document.getElementById("autocompleted-word");
+            autocompletedWord.textContent = word;
+        }
+
+        function updateAutocorrectedWord(word) {
+            const autocorrectedWord = document.getElementById("autocorrected-word");
+            autocorrectedWord.textContent = word;
+        }
+
+        function showSuggestionPopup(word, position) {
+            const suggestionPopup = document.getElementById("suggestion-popup");
+            suggestionPopup.textContent = `Did you mean: ${word}`;
+            
+            const topOffset = position.top - suggestionPopup.clientHeight;
+            suggestionPopup.style.display = "block";
+            suggestionPopup.style.left = position.left + "px";
+            suggestionPopup.style.top = topOffset - 15 + "px";
+            
+            suggestionPopup.addEventListener("click", function() {
+                replaceMisspelledWord(word);
+            });
+        }
+
+        function hideSuggestionPopup() {
+            const suggestionPopup = document.getElementById("suggestion-popup");
+            suggestionPopup.style.display = "none";
+        }
+
+        function replaceMisspelledWord(suggestedWord) {
+            const sentenceInput = document.getElementById("sentence");
+            const currentText = sentenceInput.value;
+            const words = currentText.split(" ");
+            
+            const selectionStart = sentenceInput.selectionStart;
+            const selectionEnd = sentenceInput.selectionEnd;
+            
+            words[words.length - 2] = suggestedWord;
+            
+            const newText = words.join(" ");
+            sentenceInput.value = newText;
+            
+            hideSuggestionPopup();
+        }
+
+        function getCaretCoordinates(element) {
+            const position = element.selectionStart;
+            const { top, left } = getCursorPosition(element, position);
+
+            return { top, left };
+        }
+
+        function getCursorPosition(element, position) {
+            const style = getComputedStyle(element);
+            const fontSize = parseInt(style.fontSize);
+            const fontFamily = style.fontFamily;
+
+            const span = document.createElement("span");
+            span.textContent = element.value.substring(0, position);
+            span.style.position = "absolute";
+            span.style.left = "-9999px";
+            span.style.fontSize = fontSize + "px";
+            span.style.fontFamily = fontFamily;
+
+            document.body.appendChild(span);
+            const { width, height } = span.getBoundingClientRect();
+            document.body.removeChild(span);
+
+            return {
+                top: element.offsetTop,
+                left: element.offsetLeft + width,
+            };
+        }
+
+        const sentenceInput = document.getElementById("sentence");
+
+        sentenceInput.addEventListener("input", () => {
+            const inputText = sentenceInput.value;
+            if (inputText.trim() !== "") {
+                // autocomplete();
+            } else {
+                updateAutocompletedWord("");
+                updateAutocorrectedWord("");
+            }
+            hideSuggestionPopup();
+        });
+
+        sentenceInput.addEventListener("keydown", (event) => {
+            if (event.key === " ") {
+                const currentText = sentenceInput.value;
+                const words = currentText.split(" ");
+                const lastWord = words[words.length - 1];
+                const suggestion = getWordSuggestions(lastWord);
+                if (suggestion) {
+                    showSuggestionPopup(suggestion, getCaretCoordinates(sentenceInput));
+                } else {
+                    hideSuggestionPopup();
+                }
+            } else if (event.key === "Tab") {
+                event.preventDefault(); // Prevent the default Tab behavior
+                handleTabKeyPress();
+                console.log(tabPressCount);
+            }
+        })
+
+        sentenceInput.addEventListener("click", () => {
+            hideSuggestionPopup();
+        });
+
+
+        var tabPressCount = 0;
+
+        function handleTabKeyPress() {
+            // console.log(tabPressCount);
+            if (tabPressCount === 0) {
+                // On the first Tab press, print the suggested word in light grey text
+                getSuggestedWord();
+                showSuggestionPopup(lastSuggestedWord, getCaretCoordinates(sentenceInput));
+                // if (lastSuggestedWord) {
+                //     const sentenceText = sentenceInput.value;
+                //     const position = sentenceInput.selectionStart;
+                //     const textBefore = sentenceText.substring(0, position);
+                //     const textAfter = sentenceText.substring(position);
+                //     // sentenceInput.value = textBefore + " " + lastSuggestedWord + textAfter;
+                //     tabPressCount++;
+                // }
+
+            } else if (tabPressCount === 1) {
+                // On the second Tab press, append the suggested word to the input
+                if (lastSuggestedWord===null) {
+                   return;
+                }
+                sentenceInput.value += " " + lastSuggestedWord;
+                lastSuggestedWord=null;
+            }
+            tabPressCount=1-tabPressCount;
+
+            hideSuggestionPopup(); // Hide the suggestion popup after Tab press
+        }
+
+        function getWordSuggestions(word) {
+            // Send a request to the server to get suggestions for the given word
+            fetch('/get_suggestions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ word: word }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const suggestedWord = data.suggested_word;
+                showSuggestionPopup(suggestedWord, getCaretCoordinates(sentenceInput));
+                // updateAutocompletedWord(suggestedWord);
+            })
+            .catch(error => {
+                console.error('Suggestion Error:', error);
+            });
+        }
+
+        var lastSuggestedWord = null;
+
+        function getSuggestedWord() {
+            // Send a request to the server to get the suggested word from the autocomplete function
+            fetch('/autocomplete_word', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sentence: sentenceInput.value }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                lastSuggestedWord = data.next_word;
+                console.log(lastSuggestedWord); // Set the lastSuggestedWord
+                // if (lastSuggestedWord) {
+                //     // On successful response, print the suggested word in light grey text
+                //     // const position = sentenceInput.selectionStart;
+                //     // const textBefore = sentenceInput.value.substring(0, position);
+                //     // const textAfter = sentenceInput.value.substring(position);
+                //     // sentenceInput.value = textBefore + ' ' + lastSuggestedWord + textAfter;
+                // }
+            })
+            .catch(error => {
+                console.error('Autocomplete Error:', error);
+            });
+        }
+
+        function summarizeText() {
+            const inputText = sentenceInput.value;
+            
+            fetch('/summarize_text', {
+                method: 'POST',
+                body: JSON.stringify({ input_text: inputText }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                const summary = data.summary;
+                document.getElementById('summary').textContent = summary;
+            })
+            .catch(error => {
+                console.error('Summarization Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
